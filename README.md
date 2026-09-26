@@ -170,7 +170,7 @@ tag 推送到 GitHub 后，在项目根目录执行：
 脚本会完成：
 
 1. 验证 GitHub tag 是否存在；
-2. 主动请求 `proxy.golang.org` 拉取该版本；
+2. 主动请求 Go 模块代理拉取该版本；
 3. 校验 `.info`、`.mod` 和版本列表；
 4. 在干净临时环境中执行 `go install github.com/yeboyzq/gocheck@<version>`；
 5. 运行安装后的 `gocheck --help` 做冒烟测试；
@@ -181,6 +181,20 @@ tag 推送到 GitHub 后，在项目根目录执行：
 ```bash
 PKG_GO_DEV_TIMEOUT_SECONDS=600 ./verify-module-index.sh v0.1.0
 ```
+
+脚本默认使用官方模块代理：
+
+```text
+https://proxy.golang.org
+```
+
+如果你的网络无法访问官方代理，可以改用可访问的代理做拉取验证：
+
+```bash
+PROXY_BASE=https://goproxy.cn ./verify-module-index.sh v1.0.0
+```
+
+注意：`goproxy.cn` 只能证明该代理可以拉取模块，不能替代 `proxy.golang.org` 与 `pkg.go.dev` 的官方索引验证。如果本机无法访问这两个站点，建议在 GitHub Actions 或其他可访问网络中执行完整脚本。
 
 ## 环境要求
 

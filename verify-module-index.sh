@@ -13,7 +13,8 @@ set -Eeuo pipefail
 
 readonly EXPECTED_MODULE="github.com/yeboyzq/gocheck"
 readonly GITHUB_REMOTE_URL="${GITHUB_REMOTE_URL:-https://github.com/yeboyzq/gocheck.git}"
-readonly PROXY_BASE="https://proxy.golang.org"
+PROXY_BASE="${PROXY_BASE:-https://proxy.golang.org}"
+readonly PROXY_BASE
 readonly PKG_GO_DEV_TIMEOUT_SECONDS="${PKG_GO_DEV_TIMEOUT_SECONDS:-300}"
 readonly PKG_GO_DEV_RETRY_SECONDS="${PKG_GO_DEV_RETRY_SECONDS:-10}"
 
@@ -49,15 +50,17 @@ Example:
   ./verify-module-index.sh v0.1.0
 
 Environment:
+  PROXY_BASE                 Go module proxy used for verification and install.
+                             Default: https://proxy.golang.org
   PKG_GO_DEV_TIMEOUT_SECONDS  Maximum wait for pkg.go.dev indexing. Default: 300
   PKG_GO_DEV_RETRY_SECONDS    Interval between pkg.go.dev checks. Default: 10
   GITHUB_REMOTE_URL           Git URL used to verify the published tag.
 
 The script:
   1. Verifies a stable semantic version and its GitHub tag.
-  2. Requests proxy.golang.org to fetch the module.
+  2. Requests the configured Go module proxy to fetch the module.
   3. Validates .info, .mod, and version-list responses.
-  4. Installs the exact version from proxy.golang.org in a clean temporary Go environment.
+  4. Installs the exact version from the configured proxy in a clean temporary Go environment.
   5. Runs the installed gocheck command.
   6. Requests and verifies the pkg.go.dev version page.
 EOF
@@ -113,13 +116,21 @@ temp_dir="$(mktemp -d "${TMPDIR:-/tmp}/gocheck-index-verify-XXXXXX")"
 request_proxy() {
     local endpoint="$1"
     local output="$2"
-    curl --fail --location --silent --show-error \
+    if ! curl --fail --location --silent --show-error \
         --retry 5 --retry-delay 2 --retry-connrefused \
         --output "$output" \
-        "$PROXY_BASE/$module/@v/$endpoint" || fail "proxy request failed: $endpoint"
+        "$PROXY_BASE/$module/@v/$endpoint"; then
+        printf '\nDiagnostic:\n' >&2
+        printf 'Could not connect to the Go module proxy: %s\n' "$PROXY_BASE" >&2
+        printf 'This is a local network connectivity failure, not proof that the module is unavailable.\n' >&2
+        printf 'You can test another proxy, for example:\n' >&2
+        printf '  PROXY_BASE=https://goproxy.cn ./verify-module-index.sh %s\n' "$version" >&2
+        printf 'To verify the official proxy and pkg.go.dev from a network with access, run the script on GitHub Actions or another host.\n' >&2
+        fail "proxy request failed: $endpoint"
+    fi
 }
 
-printf '\n[2/6] Requesting module metadata from proxy.golang.org...\n'
+printf '\n[2/6] Requesting module metadata from %s...\n' "$PROXY_BASE"
 info_file="$temp_dir/info.json"
 mod_file="$temp_dir/mod"
 list_file="$temp_dir/list"
