@@ -157,6 +157,8 @@ git push origin v0.1.0
 
 CI 在 push 和 pull request 时运行测试、vet 和构建。推送 `v*` tag 后，Release workflow 会构建 Linux、macOS、Windows 的 amd64/arm64 产物并创建 GitHub Release。
 
+如果 tag 对应的 GitHub Release 已经存在，例如你先在网页上创建了 Release，workflow 不会重复创建同名 Release，而是把构建产物上传到已有 Release 并覆盖同名文件。
+
 ### 验证 Go 模块索引
 
 tag 推送到 GitHub 后，在项目根目录执行：
